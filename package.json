@@ -1,0 +1,46 @@
+{
+  "name": "real-estate-lead-agent",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/contract.test.ts",
+    "test:lead-prioritization": "vitest run tests/lead-prioritization.test.ts",
+    "seed": "tsx scripts/seed.ts"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-dropdown-menu": "^2.1.16",
+    "@radix-ui/react-select": "^2.2.6",
+    "@radix-ui/react-tabs": "^1.1.13",
+    "@radix-ui/react-tooltip": "^1.2.8",
+    "@strands-agents/harness": "0.2.0",
+    "@strands-agents/sdk": "1.20.0",
+    "@supabase/supabase-js": "^2.117.3",
+    "next": "16.4.0",
+    "openai": "^6.32.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "resend": "^6.32.1",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "16.4.0",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vitest": "^5.0.3"
+  }
+}
