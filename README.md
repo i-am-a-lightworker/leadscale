@@ -15,6 +15,10 @@ npm run dev
 
 The mock API works without credentials. Configure Supabase only to run the seed script.
 
+### Lead prioritization contracts
+
+Stable lead, assessment, deterministic filtering, scoring, and agent prompt contracts for the MVP live under `lib/`. Run their focused unit tests with `npm run test:lead-prioritization`; pass a fixed `now` to filtering when evaluating age-based rules.
+
 ### Fresh project commands
 
 For a fresh directory named `real-estate-lead-agent`:

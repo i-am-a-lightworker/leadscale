@@ -11,7 +11,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/*.test.ts",
+    "test": "tsx --test tests/contract.test.ts",
+    "test:lead-prioritization": "vitest run tests/lead-prioritization.test.ts",
     "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
@@ -39,6 +40,7 @@
     "eslint-config-next": "16.4.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.20.0",
-    "typescript": "^5.9.0"
+    "typescript": "^5.9.0",
+    "vitest": "^5.0.3"
   }
 }
