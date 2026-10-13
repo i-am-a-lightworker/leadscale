@@ -1,7 +1,16 @@
-import { LeadsSchema } from "@/contracts/lead";
-import { seedLeads } from "@/data/seedLeads";
-import { validatedJson } from "@/lib/validatedJson";
+import { LeadSchema } from "../../../../lib/types/lead";
+import { InMemoryLeadRepository } from "../../../../lib/data/leadRepository";
 
-export function GET() {
-  return validatedJson(LeadsSchema, seedLeads);
+const repository = new InMemoryLeadRepository();
+
+export async function GET(): Promise<Response> {
+  try {
+    const leads = await repository.list();
+    return Response.json(LeadSchema.array().parse(leads));
+  } catch {
+    return Response.json(
+      { error: { code: "LEADS_UNAVAILABLE", message: "Leads could not be retrieved." } },
+      { status: 500 },
+    );
+  }
 }

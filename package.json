@@ -11,7 +11,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/contract.test.ts",
+    "test": "tsx --test tests/contract.test.ts && vitest run tests/agent-runtime.test.ts tests/lead-prioritization.test.ts",
     "test:lead-prioritization": "vitest run tests/lead-prioritization.test.ts",
     "seed": "tsx scripts/seed.ts"
   },
@@ -25,7 +25,7 @@
     "@strands-agents/sdk": "1.20.0",
     "@supabase/supabase-js": "^2.117.3",
     "next": "16.4.0",
-    "openai": "^6.32.1",
+    "openai": "^6.45.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "resend": "^6.32.1",
