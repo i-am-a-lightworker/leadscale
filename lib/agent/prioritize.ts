@@ -46,6 +46,7 @@ export type PrioritizeResult = z.infer<typeof PrioritizeResultSchema>;
 
 export type PrioritizeDependencies = {
   modelRunner: ModelRunner;
+  filterBatch?: readonly Lead[];
   timeoutMs?: number;
   concurrency?: number;
   now?: string;
@@ -91,7 +92,8 @@ async function prioritizeOne(
   timeoutMs: number,
 ): Promise<PerLeadResult> {
   const startedAt = Date.now();
-  const filtered = filterLead(lead, { now: dependencies.now ?? new Date().toISOString(), batch: allLeads });
+  const filterBatch = dependencies.filterBatch ?? allLeads;
+  const filtered = filterLead(lead, { now: dependencies.now ?? new Date().toISOString(), batch: filterBatch });
   if (filtered.status === "rejected") return { kind: "rejected", lead, reasons: filtered.reasons };
 
   const flags = filtered.status === "flagged" ? filtered.flags : [];
@@ -169,7 +171,10 @@ export async function prioritizeLeads(
       try {
         outcomes[index] = await prioritizeOne(lead, leads, dependencies, timeoutMs);
       } catch {
-        const fallbackFiltered = filterLead(lead, { now: dependencies.now ?? new Date().toISOString(), batch: leads });
+        const fallbackFiltered = filterLead(lead, {
+          now: dependencies.now ?? new Date().toISOString(),
+          batch: dependencies.filterBatch ?? leads,
+        });
         if (fallbackFiltered.status === "rejected") {
           outcomes[index] = { kind: "rejected", lead, reasons: fallbackFiltered.reasons };
           return;

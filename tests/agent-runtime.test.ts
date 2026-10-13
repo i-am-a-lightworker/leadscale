@@ -166,8 +166,9 @@ describe("lead agent orchestration", () => {
     const duplicate = seedLeads.find((lead) => lead.id === "duplicate");
     if (!duplicate) throw new Error("Duplicate seed fixture is missing.");
     const validRunner: ModelRunner = async (input) => assessment({ score: input.preScore });
-    const duplicateResult = await prioritizeLeads([strongLead, duplicate], {
+    const duplicateResult = await prioritizeLeads([duplicate], {
       modelRunner: validRunner,
+      filterBatch: seedLeads,
       now: "2026-10-13T12:00:00.000Z",
     });
     expect(duplicateResult.meta.find((entry) => entry.leadId === "duplicate")?.flags.some((flag) => flag.startsWith("DUPLICATE:"))).toBe(true);

@@ -59,6 +59,7 @@ export async function POST(request: Request): Promise<Response> {
 
     const result = await prioritizeLeads(selectedLeads, {
       modelRunner,
+      filterBatch: leads,
       timeoutMs: readPositiveInteger("AGENT_TIMEOUT_MS", PRIORITIZE_CONFIG.defaultTimeoutMs),
       concurrency: readPositiveInteger("AGENT_CONCURRENCY", PRIORITIZE_CONFIG.defaultConcurrency),
     });
