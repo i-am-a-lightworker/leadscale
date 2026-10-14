@@ -13,7 +13,7 @@ npm install
 npm run dev
 ```
 
-The mock API works without credentials. Configure Supabase only to run the seed script.
+The mock API works with `DATA_BACKEND=memory` and no credentials. Set `DATA_BACKEND=supabase`, `SUPABASE_URL`, and the server-only `SUPABASE_SERVICE_ROLE_KEY` to persist leads.
 
 ### Lead prioritization contracts
 
@@ -50,11 +50,34 @@ git switch -c feature/ui  # Shalinthia
 
 ### Seed Supabase
 
-Apply `supabase/migrations/20261008000000_shared_setup.sql` in the Supabase SQL editor or with the Supabase CLI, then run:
+Apply both SQL migrations in `supabase/migrations/` in timestamp order with the Supabase SQL editor or CLI, then run:
 
 ```sh
 npm run seed
 ```
+
+### Intake endpoints
+
+- `POST /api/intake/csv`: multipart field `file` (or `csv`) or a `text/csv` body.
+- `POST /api/intake/manual`: one lead object, an array of objects, or `{ "leads": [...] }` as JSON.
+- `POST /api/intake/email`: Resend `email.received` webhook. Configure its signing secret and `RESEND_API_KEY`; the webhook event's `data.email_id` is used to retrieve the inbound body.
+
+Partial imports return `{ "imported": 1, "skipped": 1, "errors": [{ "row": 3, "message": "..." }] }`. Request-level failures return `{ "error": { "code": "...", "message": "..." } }`.
+
+#### Integration notes for Shalinthia
+
+Manual form example:
+
+```http
+POST /api/intake/manual
+Content-Type: application/json
+
+{"name":"Morgan Reed","email":"morgan@example.com","phone":"(512) 555-0199","budget":"$450k","timeline":"within 30 days","message":"Interested in touring."}
+```
+
+CSV uploads should send a `file` field in `FormData`; accepted columns include `name`/`full name`, `email`/`email address`, `phone`/`phone number`, `address`/`property address`, `budget`/`budget range`, `timeline`/`timeframe`, and `message`/`notes`. The upload response includes successful row count and per-row errors; failed rows include their CSV row number and can be corrected and resubmitted.
+
+Handle partial success by displaying `imported`, `skipped`, and each `errors[].row`/`errors[].message`. Handle request failures through `error.code` and `error.message`; expected codes include `INVALID_REQUEST`, `INVALID_JSON`, `UNSUPPORTED_MEDIA_TYPE`, `PAYLOAD_TOO_LARGE`, and `INTAKE_FAILED`. Email webhook verification failures return `UNSIGNED_WEBHOOK` or `INVALID_SIGNATURE`; this endpoint is for Resend delivery, not the upload screen.
 
 ### Deploy a hello world
 
