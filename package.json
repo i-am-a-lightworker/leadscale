@@ -11,7 +11,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/contract.test.ts && vitest run tests/agent-runtime.test.ts tests/lead-prioritization.test.ts",
+    "test": "tsx --test tests/contract.test.ts && vitest run tests/agent-runtime.test.ts tests/lead-prioritization.test.ts tests/intake-normalize.test.ts tests/intake.test.ts",
     "test:lead-prioritization": "vitest run tests/lead-prioritization.test.ts",
     "seed": "tsx scripts/seed.ts"
   },
