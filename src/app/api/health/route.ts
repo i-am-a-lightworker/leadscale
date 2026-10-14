@@ -1,6 +1,5 @@
-import { HealthResponseSchema } from "@/contracts/lead";
-import { validatedJson } from "@/lib/validatedJson";
+import { HealthApiResponseSchema } from "../../../../lib/types/api";
 
 export function GET() {
-  return validatedJson(HealthResponseSchema, { status: "ok" });
+  return Response.json(HealthApiResponseSchema.parse({ status: "ok" }));
 }

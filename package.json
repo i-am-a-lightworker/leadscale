@@ -11,9 +11,13 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/contract.test.ts && vitest run tests/agent-runtime.test.ts tests/lead-prioritization.test.ts tests/intake-normalize.test.ts tests/intake.test.ts",
+    "test": "tsx --test tests/contract.test.ts && vitest run tests/contract/api.test.ts tests/security.test.ts tests/agent-runtime.test.ts tests/lead-prioritization.test.ts tests/intake-normalize.test.ts tests/intake.test.ts",
     "test:lead-prioritization": "vitest run tests/lead-prioritization.test.ts",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "eval": "tsx scripts/eval.ts",
+    "demo:reset": "tsx scripts/demo-reset.ts",
+    "smoke": "tsx scripts/smoke.ts",
+    "check:client-secrets": "tsx scripts/check-client-secrets.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

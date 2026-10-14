@@ -3,6 +3,7 @@ node_modules/
 .vercel/
 out/
 coverage/
+eval-reports/
 .env*
 !.env.example
 *.tsbuildinfo

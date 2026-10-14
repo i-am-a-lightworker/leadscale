@@ -224,6 +224,25 @@ async function repositoryContract(repository: LeadRepository): Promise<void> {
     inputHash,
   }]);
   expect((await repository.getLatestAssessments([lead.id]))[lead.id]?.inputHash).toBe(inputHash);
+  await repository.saveRejected([{ leadId: lead.id, raw: lead.rawSourceData, reasons: ["fixture rejection"] }]);
+  await repository.savePrioritizeRun({
+    runId: randomUUID(),
+    mode: "mock",
+    promptVersion: AGENT_PROMPT_VERSION,
+    leadCount: 1,
+    scoredCount: 1,
+    rejectedCount: 0,
+    fallbackCount: 0,
+    validationFailureCount: 0,
+    totalDurationMs: 1,
+    p50LatencyMs: 1,
+    p95LatencyMs: 1,
+  });
+  expect(await repository.getOperationalCounts()).toMatchObject({ leads: 1, scored: 1, rejected: 1, runs: 1 });
+  await repository.deleteLead(lead.id);
+  expect(await repository.getById(lead.id)).toBeNull();
+  expect((await repository.getLatestAssessments([lead.id]))[lead.id]).toBeUndefined();
+  expect(await repository.getOperationalCounts()).toMatchObject({ leads: 0, scored: 0, rejected: 0, runs: 1 });
   expect(await repository.claimIntakeEvent(`event-${lead.id}`, "email-forward")).toBe(true);
   expect(await repository.claimIntakeEvent(`event-${lead.id}`, "email-forward")).toBe(false);
   await repository.finishIntakeEvent(`event-${lead.id}`, "failed");

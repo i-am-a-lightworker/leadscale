@@ -4,11 +4,15 @@ import type {
   AssessmentToSave,
   IntakeEventStatus,
   LeadRepository,
+  OperationalCounts,
+  PrioritizeRunSummary,
   RejectedLeadToSave,
   StoredAssessment,
 } from "./leadRepository";
 import { leadAssessmentInputHash, leadContentHash, leadDedupeKey } from "./leadHash";
 import type { Database, Json } from "./supabaseDatabase.types";
+
+const SUPABASE_RESULT_PAGE_SIZE = 1_000;
 
 function getClient(): SupabaseClient<Database> {
   const url = process.env.SUPABASE_URL;
@@ -178,6 +182,63 @@ export class SupabaseLeadRepository implements LeadRepository {
       .update({ status, error: message ?? null })
       .eq("provider_message_id", providerMessageId);
     if (error) throw new Error("Intake event status could not be updated.");
+  }
+
+  async savePrioritizeRun(summary: PrioritizeRunSummary): Promise<void> {
+    const { error } = await this.client.from("prioritize_runs").insert({
+      run_id: summary.runId,
+      mode: summary.mode,
+      prompt_version: summary.promptVersion,
+      lead_count: summary.leadCount,
+      scored_count: summary.scoredCount,
+      rejected_count: summary.rejectedCount,
+      fallback_count: summary.fallbackCount,
+      validation_failure_count: summary.validationFailureCount,
+      total_duration_ms: summary.totalDurationMs,
+      p50_latency_ms: summary.p50LatencyMs,
+      p95_latency_ms: summary.p95LatencyMs,
+    });
+    if (error) throw new Error("Prioritization run could not be persisted.");
+  }
+
+  async getOperationalCounts(): Promise<OperationalCounts> {
+    const [leadQuery, rejectedQuery, runQuery] = await Promise.all([
+      this.client.from("leads").select("id", { count: "exact", head: true }),
+      this.client.from("rejected_leads").select("id", { count: "exact", head: true }),
+      this.client.from("prioritize_runs").select("run_id", { count: "exact", head: true }),
+    ]);
+    if (leadQuery.error || rejectedQuery.error || runQuery.error) {
+      throw new Error("Operational counts could not be retrieved.");
+    }
+    const assessmentRows: { lead_id: string; source: "agent" | "fallback"; created_at: string }[] = [];
+    for (let offset = 0; ; offset += SUPABASE_RESULT_PAGE_SIZE) {
+      const { data, error } = await this.client.from("assessments")
+        .select("lead_id, source, created_at")
+        .order("created_at", { ascending: false })
+        .range(offset, offset + SUPABASE_RESULT_PAGE_SIZE - 1);
+      if (error) throw new Error("Operational assessment counts could not be retrieved.");
+      const page = data ?? [];
+      assessmentRows.push(...page);
+      if (page.length < SUPABASE_RESULT_PAGE_SIZE) break;
+    }
+    const latestByLead = new Map<string, string>();
+    for (const row of assessmentRows) {
+      if (!latestByLead.has(row.lead_id)) latestByLead.set(row.lead_id, row.source);
+    }
+    return {
+      leads: leadQuery.count ?? 0,
+      scored: latestByLead.size,
+      rejected: rejectedQuery.count ?? 0,
+      fallback: [...latestByLead.values()].filter((source) => source === "fallback").length,
+      runs: runQuery.count ?? 0,
+    };
+  }
+
+  async deleteLead(id: string): Promise<void> {
+    const { error: rejectedError } = await this.client.from("rejected_leads").delete().eq("lead_id", id);
+    if (rejectedError) throw new Error("Lead rejection history could not be deleted.");
+    const { error } = await this.client.from("leads").delete().eq("id", id);
+    if (error) throw new Error("Lead could not be deleted.");
   }
 }
 

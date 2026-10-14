@@ -18,6 +18,7 @@ export const FAIR_HOUSING_DENYLIST = [
   "national origin",
   "disability",
   "familial status",
+    "family status",
   "marital status",
   "sexual orientation",
   "gender identity",
