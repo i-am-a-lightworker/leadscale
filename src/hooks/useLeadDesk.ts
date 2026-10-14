@@ -7,19 +7,24 @@ import {
   fetchPrioritized,
   LeadClientError,
 } from "../../lib/client/leadClient";
+import type { PrioritizeResult } from "../../lib/client/fixtures";
 
 export type DeskLead = PrioritizedLead & {
   assessmentSource: "agent" | "fallback";
   flags: string[];
+  adjustments: string[];
+  promptVersion: string;
 };
 
 export type LeadDeskState =
   | { status: "loading" }
+  | { status: "scoring" }
+  | { status: "scoring-slow" }
   | { status: "error"; message: string }
   | {
       status: "ready";
       ranked: DeskLead[];
-      rejectedCount: number;
+      rejected: PrioritizeResult["rejected"];
       leadCount: number;
     };
 
@@ -32,12 +37,14 @@ async function loadDeskState(): Promise<LeadDeskState> {
       ...entry,
       assessmentSource: meta?.source ?? "agent",
       flags: meta?.flags ?? [],
+      adjustments: meta?.adjustments ?? [],
+      promptVersion: meta?.promptVersion ?? "Unavailable",
     } satisfies DeskLead;
   });
   return {
     status: "ready",
     ranked,
-    rejectedCount: result.rejected.length,
+    rejected: result.rejected,
     leadCount: leads.length,
   };
 }
@@ -56,6 +63,16 @@ export function useLeadDesk() {
   const [state, setState] = useState<LeadDeskState>({ status: "loading" });
 
   useEffect(() => {
+    if (state.status !== "scoring") return;
+    const timer = window.setTimeout(() => {
+      setState((current) =>
+        current.status === "scoring" ? { status: "scoring-slow" } : current,
+      );
+    }, 8_000);
+    return () => window.clearTimeout(timer);
+  }, [state.status]);
+
+  useEffect(() => {
     let active = true;
     void loadDeskState()
       .then((nextState) => {
@@ -70,7 +87,7 @@ export function useLeadDesk() {
   }, []);
 
   async function reload() {
-    setState({ status: "loading" });
+    setState({ status: "scoring" });
     try {
       setState(await loadDeskState());
     } catch (error) {

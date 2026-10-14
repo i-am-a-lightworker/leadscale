@@ -45,7 +45,7 @@ export default function RootLayout({
                 className={`mode-indicator ${fixtureMode ? "mode-indicator--fixtures" : "mode-indicator--api"}`}
               >
                 <span className="mode-dot" aria-hidden="true" />
-                {fixtureMode ? "Fixture review" : "Connected to API"}
+                {fixtureMode ? "Demo data" : "API mode"}
               </span>
               {process.env.NODE_ENV !== "production" ? (
                 <Link className="design-link" href="/design">
