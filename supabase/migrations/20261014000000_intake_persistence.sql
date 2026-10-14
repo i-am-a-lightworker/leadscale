@@ -79,6 +79,21 @@ create table if not exists public.intake_events (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.prioritize_runs (
+  run_id uuid primary key,
+  mode text not null check (mode in ('mock', 'live')),
+  prompt_version text not null,
+  lead_count integer not null check (lead_count >= 0),
+  scored_count integer not null check (scored_count >= 0),
+  rejected_count integer not null check (rejected_count >= 0),
+  fallback_count integer not null check (fallback_count >= 0),
+  validation_failure_count integer not null check (validation_failure_count >= 0),
+  total_duration_ms integer not null check (total_duration_ms >= 0),
+  p50_latency_ms integer not null check (p50_latency_ms >= 0),
+  p95_latency_ms integer not null check (p95_latency_ms >= 0),
+  created_at timestamptz not null default now()
+);
+
 create index if not exists leads_received_at_idx on public.leads (received_at desc);
 create unique index if not exists leads_dedupe_key_uidx on public.leads (dedupe_key) where dedupe_key is not null;
 create index if not exists assessments_score_idx on public.assessments (score desc);
@@ -90,6 +105,7 @@ alter table public.lead_scores enable row level security;
 alter table public.assessments enable row level security;
 alter table public.rejected_leads enable row level security;
 alter table public.intake_events enable row level security;
+alter table public.prioritize_runs enable row level security;
 
 -- No client policies are intentional: browser access is denied. Only trusted server code uses the service-role key,
 -- which bypasses RLS and must never be bundled into client code.
@@ -98,3 +114,6 @@ comment on table public.lead_scores is 'Legacy score access is server-only; no a
 comment on table public.assessments is 'Assessment access is server-only; no anon/authenticated RLS policy is configured.';
 comment on table public.rejected_leads is 'Rejected source data is sensitive and server-only; no client RLS policy is configured.';
 comment on table public.intake_events is 'Webhook idempotency records are server-only; no client RLS policy is configured.';
+comment on table public.prioritize_runs is 'Aggregate run history is server-only; no anon/authenticated RLS policy is configured.';
+
+create index if not exists prioritize_runs_created_at_idx on public.prioritize_runs (created_at desc);

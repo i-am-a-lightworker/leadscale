@@ -80,6 +80,16 @@ describe("assessment governance", () => {
       50,
       strongLead,
     )).toThrow();
+    expect(() => validateAndConstrain(
+      assessment({ reasons: ["The lead mentioned family status.", "A second factual reason."] }),
+      50,
+      strongLead,
+    )).toThrow();
+    expect(() => validateAndConstrain(
+      assessment({ reasons: ["The lead mentioned religion.", "A second factual reason."] }),
+      50,
+      strongLead,
+    )).toThrow();
   });
 
   it("uses a deterministic fallback assessment", () => {
@@ -226,7 +236,7 @@ describe("mock API routes", () => {
   });
 
   it("returns repository leads validated against the Lead schema", async () => {
-    const response = await GET();
+    const response = await GET(new Request("http://localhost/api/leads"));
     const body: unknown = await response.json();
     expect(response.status).toBe(200);
     expect(LeadSchema.array().safeParse(body).success).toBe(true);

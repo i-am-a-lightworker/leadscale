@@ -9,8 +9,9 @@ export function contentLengthTooLarge(request: Request): boolean {
   return Number.isFinite(contentLength) && contentLength > INTAKE_LIMITS.maxRequestBytes;
 }
 
-export async function readBoundedBytes(request: Request): Promise<Uint8Array | null> {
-  if (contentLengthTooLarge(request)) return null;
+export async function readBoundedBytes(request: Request, maxBytes = INTAKE_LIMITS.maxRequestBytes): Promise<Uint8Array | null> {
+  const contentLength = Number(request.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) return null;
   if (!request.body) return new Uint8Array();
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -19,7 +20,7 @@ export async function readBoundedBytes(request: Request): Promise<Uint8Array | n
     const { done, value } = await reader.read();
     if (done) break;
     totalBytes += value.byteLength;
-    if (totalBytes > INTAKE_LIMITS.maxRequestBytes) {
+    if (totalBytes > maxBytes) {
       await reader.cancel();
       return null;
     }

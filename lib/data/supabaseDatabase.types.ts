@@ -22,6 +22,21 @@ type LeadRow = {
   updated_at: string;
 };
 
+type PrioritizeRunRow = {
+  run_id: string;
+  mode: "mock" | "live";
+  prompt_version: string;
+  lead_count: number;
+  scored_count: number;
+  rejected_count: number;
+  fallback_count: number;
+  validation_failure_count: number;
+  total_duration_ms: number;
+  p50_latency_ms: number;
+  p95_latency_ms: number;
+  created_at: string;
+};
+
 type AssessmentRow = {
   id: string;
   lead_id: string;
@@ -79,6 +94,12 @@ export interface Database {
         Row: IntakeEventRow;
         Insert: Omit<IntakeEventRow, "id" | "created_at"> & { id?: string; created_at?: string };
         Update: Partial<Omit<IntakeEventRow, "id" | "created_at">>;
+        Relationships: [];
+      };
+      prioritize_runs: {
+        Row: PrioritizeRunRow;
+        Insert: Omit<PrioritizeRunRow, "created_at"> & { created_at?: string };
+        Update: Partial<Omit<PrioritizeRunRow, "run_id" | "created_at">>;
         Relationships: [];
       };
     };

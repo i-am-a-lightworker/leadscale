@@ -24,6 +24,28 @@ export type RejectedLeadToSave = {
 
 export type IntakeEventStatus = "pending" | "processed" | "rejected" | "failed";
 
+export type PrioritizeRunSummary = {
+  runId: string;
+  mode: "mock" | "live";
+  promptVersion: string;
+  leadCount: number;
+  scoredCount: number;
+  rejectedCount: number;
+  fallbackCount: number;
+  validationFailureCount: number;
+  totalDurationMs: number;
+  p50LatencyMs: number;
+  p95LatencyMs: number;
+};
+
+export type OperationalCounts = {
+  leads: number;
+  scored: number;
+  rejected: number;
+  fallback: number;
+  runs: number;
+};
+
 export interface LeadRepository {
   getById(id: string): Promise<Lead | null>;
   list(): Promise<Lead[]>;
@@ -33,6 +55,9 @@ export interface LeadRepository {
   getLatestAssessments(leadIds: readonly string[]): Promise<Record<string, StoredAssessment>>;
   claimIntakeEvent(providerMessageId: string, source: string): Promise<boolean>;
   finishIntakeEvent(providerMessageId: string, status: IntakeEventStatus, error?: string): Promise<void>;
+  savePrioritizeRun(summary: PrioritizeRunSummary): Promise<void>;
+  getOperationalCounts(): Promise<OperationalCounts>;
+  deleteLead(id: string): Promise<void>;
 }
 
 export class InMemoryLeadRepository implements LeadRepository {
@@ -40,6 +65,7 @@ export class InMemoryLeadRepository implements LeadRepository {
   private readonly assessments = new Map<string, StoredAssessment>();
   private readonly intakeEvents = new Map<string, { source: string; status: IntakeEventStatus; error?: string }>();
   private readonly rejected: RejectedLeadToSave[] = [];
+  private readonly runs: PrioritizeRunSummary[] = [];
 
   constructor(leads: readonly unknown[] = seedLeads) {
     this.leads = leads.map((lead) => LeadSchema.parse(lead));
@@ -101,5 +127,29 @@ export class InMemoryLeadRepository implements LeadRepository {
     const event = this.intakeEvents.get(providerMessageId);
     if (!event) return;
     this.intakeEvents.set(providerMessageId, { ...event, status, ...(error ? { error } : {}) });
+  }
+
+  async savePrioritizeRun(summary: PrioritizeRunSummary): Promise<void> {
+    this.runs.push({ ...summary });
+  }
+
+  async getOperationalCounts(): Promise<OperationalCounts> {
+    const latestAssessments = [...this.assessments.values()];
+    return {
+      leads: this.leads.length,
+      scored: latestAssessments.length,
+      rejected: this.rejected.length,
+      fallback: latestAssessments.filter((item) => item.source === "fallback").length,
+      runs: this.runs.length,
+    };
+  }
+
+  async deleteLead(id: string): Promise<void> {
+    const index = this.leads.findIndex((lead) => lead.id === id);
+    if (index >= 0) this.leads.splice(index, 1);
+    this.assessments.delete(id);
+    for (let rejectedIndex = this.rejected.length - 1; rejectedIndex >= 0; rejectedIndex -= 1) {
+      if (this.rejected[rejectedIndex]?.leadId === id) this.rejected.splice(rejectedIndex, 1);
+    }
   }
 }
