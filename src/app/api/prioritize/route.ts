@@ -1,8 +1,10 @@
 import { z } from "zod";
 import { createLeadAgent } from "../../../../lib/agent/agent";
 import { mockModelRunner } from "../../../../lib/agent/mockRunner";
-import { PRIORITIZE_CONFIG, PrioritizeResultSchema, prioritizeLeads } from "../../../../lib/agent/prioritize";
-import { InMemoryLeadRepository } from "../../../../lib/data/leadRepository";
+import { AGENT_PROMPT_VERSION, PRIORITIZE_CONFIG, PrioritizeResultSchema, prioritizeLeads } from "../../../../lib/agent/prioritize";
+import { getLeadRepository } from "../../../../lib/data";
+import { leadAssessmentInputHash } from "../../../../lib/data/leadHash";
+import { hasFreshAssessment } from "../../../../lib/data/assessmentCache";
 
 const PrioritizeRequestSchema = z.object({
   leadIds: z.array(z.string().trim().min(1)).optional(),
@@ -11,8 +13,6 @@ const PrioritizeRequestSchema = z.object({
     context.addIssue({ code: "custom", message: "leadIds must not contain duplicates.", path: ["leadIds"] });
   }
 });
-
-const repository = new InMemoryLeadRepository();
 
 function errorResponse(code: string, message: string, status: number): Response {
   return Response.json({ error: { code, message } }, { status });
@@ -32,6 +32,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!parsed.success) return errorResponse("INVALID_REQUEST", "Request body must contain optional unique leadIds.", 400);
 
   try {
+    const repository = getLeadRepository();
     const leads = await repository.list();
     const selectedLeads = parsed.data.leadIds
       ? leads.filter((lead) => parsed.data.leadIds?.includes(lead.id))
@@ -57,13 +58,60 @@ export async function POST(request: Request): Promise<Response> {
       });
     }
 
-    const result = await prioritizeLeads(selectedLeads, {
+    const stored = await repository.getLatestAssessments(selectedLeads.map((lead) => lead.id));
+    const cacheHits = selectedLeads.flatMap((lead) => {
+      const cached = stored[lead.id];
+      if (!hasFreshAssessment(lead, cached, AGENT_PROMPT_VERSION) || !cached) return [];
+      return [{
+        lead,
+        assessment: cached.assessment,
+        meta: {
+          leadId: lead.id,
+          source: cached.source,
+          retries: 0,
+          adjustments: cached.adjustments,
+          flags: cached.flags,
+          durationMs: 0,
+          promptVersion: cached.promptVersion,
+        },
+      }];
+    });
+    const cacheIds = new Set(cacheHits.map(({ lead }) => lead.id));
+    const leadsToPrioritize = selectedLeads.filter((lead) => !cacheIds.has(lead.id));
+    const fresh = await prioritizeLeads(leadsToPrioritize, {
       modelRunner,
       filterBatch: leads,
       timeoutMs: readPositiveInteger("AGENT_TIMEOUT_MS", PRIORITIZE_CONFIG.defaultTimeoutMs),
       concurrency: readPositiveInteger("AGENT_CONCURRENCY", PRIORITIZE_CONFIG.defaultConcurrency),
     });
-    const validatedResult = PrioritizeResultSchema.parse(result);
+    const selectedById = new Map(selectedLeads.map((lead) => [lead.id, lead]));
+    await repository.saveAssessments(fresh.meta.map((meta) => {
+      const prioritized = fresh.ranked.find((item) => item.lead.id === meta.leadId);
+      if (!prioritized) throw new Error("Assessment result is missing its lead.");
+      return {
+        leadId: meta.leadId,
+        assessment: prioritized.assessment,
+        source: meta.source,
+        promptVersion: meta.promptVersion,
+        adjustments: meta.adjustments,
+        flags: meta.flags,
+        inputHash: leadAssessmentInputHash(selectedById.get(meta.leadId) ?? prioritized.lead, meta.promptVersion),
+      };
+    }));
+    await repository.saveRejected(fresh.rejected.map(({ lead, reasons }) => ({
+      leadId: lead.id,
+      raw: lead.rawSourceData,
+      reasons,
+    })));
+
+    const ranked = [...fresh.ranked, ...cacheHits.map(({ lead, assessment }) => ({ lead, assessment }))]
+      .sort((left, right) => right.assessment.score - left.assessment.score ||
+        Date.parse(right.lead.receivedAt) - Date.parse(left.lead.receivedAt) || left.lead.id.localeCompare(right.lead.id));
+    const validatedResult = PrioritizeResultSchema.parse({
+      ranked,
+      rejected: fresh.rejected,
+      meta: [...fresh.meta, ...cacheHits.map(({ meta }) => meta)],
+    });
     return Response.json(validatedResult);
   } catch {
     return errorResponse("PRIORITIZE_FAILED", "Lead prioritization could not be completed.", 500);
